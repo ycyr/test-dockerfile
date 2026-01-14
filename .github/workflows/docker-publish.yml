@@ -71,10 +71,9 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: |
-            org.opencontainers.image.source=https://github.com/ycyr/test-dockerfile
+            ${{ steps.meta.outputs.labels }}
             org.opencontainers.image.description=My laravel testcontainer image
             org.opencontainers.image.licenses=MIT
-            ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           target: development
