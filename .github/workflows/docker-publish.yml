@@ -15,9 +15,8 @@ on:
         options:
           - development
           - production
-  push:
-    tags:
-      - 'v*'
+  release:
+    types: [published]
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -75,7 +74,7 @@ jobs:
       # https://github.com/docker/build-push-action
       - name: Build and push Docker Production image 
         id: build-and-push-prod
-        if: github.event_name == 'push' || github.event.inputs.environment == 'production'
+        if: github.event_name == 'release' || github.event.inputs.environment == 'production'
         uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
         with:
           context: .
@@ -95,7 +94,7 @@ jobs:
       # https://github.com/docker/build-push-action
       - name: Build and push Docker Development image 
         id: build-and-push-dev
-        if: github.event_name == 'push' || github.event.inputs.environment == 'development'
+        if: github.event.inputs.environment == 'development'
         uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
         with:
           context: .
@@ -134,7 +133,7 @@ jobs:
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
       - name: Sign the published Docker image (Production)
-        if: ${{ (github.event_name == 'push' || github.event.inputs.environment == 'production') && github.event_name != 'pull_request' }}
+        if: ${{ (github.event_name == 'release' || github.event.inputs.environment == 'production') && github.event_name != 'pull_request' }}
         env:
           TAGS: ${{ steps.meta.outputs.tags }}-production
           DIGEST: ${{ steps.build-and-push-prod.outputs.digest }}
