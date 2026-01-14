@@ -15,6 +15,9 @@ on:
         options:
           - development
           - production
+  push:
+    tags:
+      - 'v*'
   release:
     types: [published]
 
@@ -80,7 +83,7 @@ jobs:
           context: .
           file: ./docker/common/php-fpm/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}-production
+          tags: ${{ github.event_name == 'workflow_dispatch' && format('{0}/{1}:prod-{2}', env.REGISTRY, env.IMAGE_NAME, github.sha) || format('{0}-production', steps.meta.outputs.tags) }}
           labels: |
             ${{ steps.meta.outputs.labels }}
             org.opencontainers.image.description=My laravel testcontainer image
@@ -94,13 +97,13 @@ jobs:
       # https://github.com/docker/build-push-action
       - name: Build and push Docker Development image 
         id: build-and-push-dev
-        if: github.event.inputs.environment == 'development'
+        if: github.event_name == 'push' || github.event.inputs.environment == 'development'
         uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
         with:
           context: .
           file: ./docker/common/php-fpm/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}-development
+          tags: ${{ github.event_name == 'workflow_dispatch' && format('{0}/{1}:dev-{2}', env.REGISTRY, env.IMAGE_NAME, github.sha) || format('{0}-development', steps.meta.outputs.tags) }}
           labels: |
             ${{ steps.meta.outputs.labels }}
             org.opencontainers.image.description=My laravel testcontainer image
@@ -128,13 +131,13 @@ jobs:
       - name: Sign the published Docker image (Development)
         if: ${{ (github.event_name == 'push' || github.event.inputs.environment == 'development') && github.event_name != 'pull_request' }}
         env:
-          TAGS: ${{ steps.meta.outputs.tags }}-development
+          TAGS: ${{ github.event_name == 'workflow_dispatch' && format('{0}/{1}:dev-{2}', env.REGISTRY, env.IMAGE_NAME, github.sha) || format('{0}-development', steps.meta.outputs.tags) }}
           DIGEST: ${{ steps.build-and-push-dev.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
       - name: Sign the published Docker image (Production)
         if: ${{ (github.event_name == 'release' || github.event.inputs.environment == 'production') && github.event_name != 'pull_request' }}
         env:
-          TAGS: ${{ steps.meta.outputs.tags }}-production
+          TAGS: ${{ github.event_name == 'workflow_dispatch' && format('{0}/{1}:prod-{2}', env.REGISTRY, env.IMAGE_NAME, github.sha) || format('{0}-production', steps.meta.outputs.tags) }}
           DIGEST: ${{ steps.build-and-push-prod.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
