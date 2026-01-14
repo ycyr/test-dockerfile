@@ -41,6 +41,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Get short SHA
+        id: sha
+        run: echo "short=$(echo ${{ github.sha }} | cut -c1-8)" >> $GITHUB_OUTPUT
+
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign
@@ -83,7 +87,7 @@ jobs:
           context: .
           file: ./docker/common/php-fpm/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ github.event_name == 'workflow_dispatch' && format('{0}/{1}:prod-{2}', env.REGISTRY, env.IMAGE_NAME, github.sha) || format('{0}-production', steps.meta.outputs.tags) }}
+          tags: ${{ github.event_name == 'workflow_dispatch' && format('{0}/{1}:prod-{2}', env.REGISTRY, env.IMAGE_NAME, steps.sha.outputs.short) || format('{0}-production', steps.meta.outputs.tags) }}
           labels: |
             ${{ steps.meta.outputs.labels }}
             org.opencontainers.image.description=My laravel testcontainer image
@@ -103,7 +107,7 @@ jobs:
           context: .
           file: ./docker/common/php-fpm/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ github.event_name == 'workflow_dispatch' && format('{0}/{1}:dev-{2}', env.REGISTRY, env.IMAGE_NAME, github.sha) || format('{0}-development', steps.meta.outputs.tags) }}
+          tags: ${{ github.event_name == 'workflow_dispatch' && format('{0}/{1}:dev-{2}', env.REGISTRY, env.IMAGE_NAME, steps.sha.outputs.short) || format('{0}-development', steps.meta.outputs.tags) }}
           labels: |
             ${{ steps.meta.outputs.labels }}
             org.opencontainers.image.description=My laravel testcontainer image
@@ -131,13 +135,13 @@ jobs:
       - name: Sign the published Docker image (Development)
         if: ${{ (github.event_name == 'push' || github.event.inputs.environment == 'development') && github.event_name != 'pull_request' }}
         env:
-          TAGS: ${{ github.event_name == 'workflow_dispatch' && format('{0}/{1}:dev-{2}', env.REGISTRY, env.IMAGE_NAME, github.sha) || format('{0}-development', steps.meta.outputs.tags) }}
+          TAGS: ${{ github.event_name == 'workflow_dispatch' && format('{0}/{1}:dev-{2}', env.REGISTRY, env.IMAGE_NAME, steps.sha.outputs.short) || format('{0}-development', steps.meta.outputs.tags) }}
           DIGEST: ${{ steps.build-and-push-dev.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
       - name: Sign the published Docker image (Production)
         if: ${{ (github.event_name == 'release' || github.event.inputs.environment == 'production') && github.event_name != 'pull_request' }}
         env:
-          TAGS: ${{ github.event_name == 'workflow_dispatch' && format('{0}/{1}:prod-{2}', env.REGISTRY, env.IMAGE_NAME, github.sha) || format('{0}-production', steps.meta.outputs.tags) }}
+          TAGS: ${{ github.event_name == 'workflow_dispatch' && format('{0}/{1}:prod-{2}', env.REGISTRY, env.IMAGE_NAME, steps.sha.outputs.short) || format('{0}-production', steps.meta.outputs.tags) }}
           DIGEST: ${{ steps.build-and-push-prod.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
